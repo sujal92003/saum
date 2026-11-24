@@ -1,0 +1,31 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+config.local.json
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local state and generated exports (do not publish scraped contact datasets)
+data/*.db
+data/*.db-*
+data/scratch/
+output/*.csv
+output/*.xlsx
+output/*.log
+output/*.jsonl
+output/scratch/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
