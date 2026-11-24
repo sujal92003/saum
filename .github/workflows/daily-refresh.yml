@@ -1,0 +1,50 @@
+name: Daily Western Wear refresh and Google Sheets sync
+on:
+  schedule:
+    - cron: "30 3 * * *" # 09:00 Asia/Kolkata
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: daily-western-wear-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    name: Crawl, export, and sync Google Sheets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run tests and compile check
+        run: |
+          python -m pytest -q
+          python -m compileall -q src/wwi scripts tests
+      - name: Rebuild brand seed file
+        run: python scripts/build_seeds.py
+      - name: Refresh all candidates
+        run: |
+          python -m wwi.cli all --limit 300 --force --workers 10 --delay 0.6 --max-pages 6
+        env:
+          WWI_REQUEST_TIMEOUT: "12"
+          WWI_MAX_RETRIES: "1"
+          WWI_REQUEST_DELAY: "0.6"
+          WWI_CONCURRENCY: "10"
+          WWI_MAX_PAGES_PER_SITE: "6"
+          WWI_MARKETPLACE_MODE: curated
+      - name: Build and validate pending marketplace export
+        run: |
+          python -m wwi.pending_export
+          python scripts/validate_exports.py --expected-rows 300
+      - name: Publish refreshed data to Google Sheets
+        run: python scripts/publish_to_sheets.py
+        env:
+          GOOGLE_SHEETS_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEETS_WEBHOOK_URL }}
+          GOOGLE_SHEETS_WEBHOOK_SECRET: ${{ secrets.GOOGLE_SHEETS_WEBHOOK_SECRET }}
